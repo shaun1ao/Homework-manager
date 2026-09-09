@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // No login system uses Firebase Auth in this app (single hardcoded
+    // teacher account checked in the client), so rules are left open.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
