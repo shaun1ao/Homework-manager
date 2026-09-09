@@ -2,18 +2,21 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   addDoc,
   updateDoc,
   deleteDoc,
   onSnapshot,
   query,
+  where,
   orderBy,
   arrayUnion,
   arrayRemove,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { db } from "./firebase-config.js";
+import { generateUsername, generatePassword } from "./helpers.js";
 
 // ---------- Teacher settings ----------
 
@@ -53,6 +56,12 @@ export async function getClass(classId) {
 }
 
 export async function deleteClass(classId) {
+  // Clean up the classId reference on any student still enrolled, so it
+  // doesn't linger as a dangling entry in their classIds array.
+  const enrolled = await getDocs(query(collection(db, "students"), where("classIds", "array-contains", classId)));
+  await Promise.all(
+    enrolled.docs.map((d) => updateDoc(d.ref, { classIds: arrayRemove(classId) }))
+  );
   await deleteDoc(doc(db, "classes", classId));
 }
 
@@ -65,12 +74,34 @@ export function watchStudents(callback) {
   });
 }
 
-export async function createStudent(name, classIds = []) {
-  return addDoc(collection(db, "students"), {
+export async function createStudent(name, classIds = [], existingStudents = []) {
+  const existingUsernames = existingStudents.map((s) => s.username).filter(Boolean);
+  const username = generateUsername(name, existingUsernames);
+  const password = generatePassword();
+  const docRef = await addDoc(collection(db, "students"), {
     name,
     classIds,
+    username,
+    password,
     createdAt: serverTimestamp(),
   });
+  return { id: docRef.id, username, password };
+}
+
+// For students that existed before login credentials were added.
+export async function ensureStudentCredentials(studentId, name, existingStudents = []) {
+  const existingUsernames = existingStudents.map((s) => s.username).filter(Boolean);
+  const username = generateUsername(name, existingUsernames);
+  const password = generatePassword();
+  await updateDoc(doc(db, "students", studentId), { username, password });
+  return { username, password };
+}
+
+export async function findStudentByCredentials(username, password) {
+  const q = query(collection(db, "students"), where("username", "==", username));
+  const snap = await getDocs(q);
+  const match = snap.docs.find((d) => d.data().password === password);
+  return match ? { id: match.id, ...match.data() } : null;
 }
 
 export async function addStudentToClass(studentId, classId) {

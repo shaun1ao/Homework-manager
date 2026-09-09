@@ -20,7 +20,7 @@
         </svg>
       </div>
       <h1>Homework Manager</h1>
-      <p class="auth-subtitle">Sign in to manage classes and assignments</p>
+      <p class="auth-subtitle">Teacher and student sign in</p>
 
       <label class="field">
         <span>Username</span>
@@ -44,10 +44,10 @@
   </div>
 
   <script type="module">
-    import { login, isLoggedIn } from "./js/auth.js";
+    import { login, isLoggedIn, currentRole } from "./js/auth.js";
 
     if (isLoggedIn()) {
-      window.location.href = "classes.html";
+      window.location.href = currentRole() === "student" ? "student.html" : "classes.html";
     }
 
     const form = document.getElementById("loginForm");
@@ -63,10 +63,14 @@
 
       const username = document.getElementById("username").value.trim();
       const password = document.getElementById("password").value;
-      const ok = await login(username, password);
+      const result = await login(username, password);
 
-      if (ok) {
+      if (result?.role === "teacher") {
         window.location.href = "classes.html";
+        return;
+      }
+      if (result?.role === "student") {
+        window.location.href = "student.html";
         return;
       }
 

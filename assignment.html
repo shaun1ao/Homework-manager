@@ -20,20 +20,7 @@
         </div>
         <span class="sidebar-title">Homework Manager</span>
       </div>
-      <nav class="sidebar-nav">
-        <a href="classes.html">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5z" /><path d="M6 10.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-5.5" /><path d="M22 8v6" /></svg>
-          Classes
-        </a>
-        <a href="assignments.html" class="active">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2" /><rect x="9" y="2.25" width="6" height="3.5" rx="1" /><line x1="9" y1="10.5" x2="15" y2="10.5" /><line x1="9" y1="14.5" x2="15" y2="14.5" /></svg>
-          Assignments
-        </a>
-        <a href="settings.html">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6" /><circle cx="9" cy="6" r="2" /><line x1="4" y1="12" x2="20" y2="12" /><circle cx="15" cy="12" r="2" /><line x1="4" y1="18" x2="20" y2="18" /><circle cx="7" cy="18" r="2" /></svg>
-          Settings
-        </a>
-      </nav>
+      <nav class="sidebar-nav" id="sidebarNav"></nav>
       <div class="sidebar-footer">
         <div class="sidebar-user">
           <span class="avatar" id="sidebarInitials">?</span>
@@ -53,15 +40,41 @@
   </div>
 
   <script type="module">
-    import { requireAuth, initSidebar } from "./js/auth.js";
+    import { requireAnyAuth, initSidebar, currentRole } from "./js/auth.js";
     import { watchAssignment, watchClasses, watchStudents, deleteAssignment } from "./js/db.js";
     import { escapeHtml, getParam, isOverdue } from "./js/helpers.js";
 
-    requireAuth();
+    requireAnyAuth();
     initSidebar();
 
+    const role = currentRole();
+    const backHref = role === "student" ? "student.html" : "assignments.html";
+
+    document.getElementById("sidebarNav").innerHTML =
+      role === "student"
+        ? `<a href="student.html" class="active">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2" /><rect x="9" y="2.25" width="6" height="3.5" rx="1" /><line x1="9" y1="10.5" x2="15" y2="10.5" /><line x1="9" y1="14.5" x2="15" y2="14.5" /></svg>
+            My Assignments
+          </a>`
+        : `<a href="classes.html">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5z" /><path d="M6 10.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-5.5" /><path d="M22 8v6" /></svg>
+            Classes
+          </a>
+          <a href="students.html">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.25" /><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" /><circle cx="17.5" cy="8.5" r="2.25" /><path d="M15.7 12.8c2.2.5 4 2.3 4.3 4.7" /></svg>
+            Students
+          </a>
+          <a href="assignments.html" class="active">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2" /><rect x="9" y="2.25" width="6" height="3.5" rx="1" /><line x1="9" y1="10.5" x2="15" y2="10.5" /><line x1="9" y1="14.5" x2="15" y2="14.5" /></svg>
+            Assignments
+          </a>
+          <a href="settings.html">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6" /><circle cx="9" cy="6" r="2" /><line x1="4" y1="12" x2="20" y2="12" /><circle cx="15" cy="12" r="2" /><line x1="4" y1="18" x2="20" y2="18" /><circle cx="7" cy="18" r="2" /></svg>
+            Settings
+          </a>`;
+
     const assignmentId = getParam("id");
-    if (!assignmentId) window.location.href = "assignments.html";
+    if (!assignmentId) window.location.href = backHref;
 
     let assignment;
     let classes = [];
@@ -82,7 +95,7 @@
             Back to assignments
           </button>
           <p class="empty-state">This assignment no longer exists.</p>`;
-        document.getElementById("backLink").addEventListener("click", () => (window.location.href = "assignments.html"));
+        document.getElementById("backLink").addEventListener("click", () => (window.location.href = backHref));
         return;
       }
 
@@ -96,7 +109,7 @@
       content.innerHTML = `
         <button class="back-link" id="backLink">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M5 12l7-7M5 12l7 7" /></svg>
-          Back to assignments
+          Back to ${role === "student" ? "my assignments" : "assignments"}
         </button>
 
         <div class="detail-card">
@@ -105,10 +118,14 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2" /><rect x="9" y="2.25" width="6" height="3.5" rx="1" /><line x1="9" y1="10.5" x2="15" y2="10.5" /><line x1="9" y1="14.5" x2="15" y2="14.5" /></svg>
             </div>
             <h1>${escapeHtml(assignment.title)}</h1>
-            <button class="btn btn-danger-ghost" id="deleteBtn" type="button">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-              Delete
-            </button>
+            ${
+              role === "teacher"
+                ? `<button class="btn btn-danger-ghost" id="deleteBtn" type="button">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+                    Delete
+                  </button>`
+                : ""
+            }
           </div>
 
           <div class="detail-row">
@@ -157,12 +174,15 @@
           }
         </div>`;
 
-      document.getElementById("backLink").addEventListener("click", () => (window.location.href = "assignments.html"));
-      document.getElementById("deleteBtn").addEventListener("click", async () => {
-        if (!confirm("Delete this assignment?")) return;
-        await deleteAssignment(assignmentId);
-        window.location.href = "assignments.html";
-      });
+      document.getElementById("backLink").addEventListener("click", () => (window.location.href = backHref));
+      const deleteBtn = document.getElementById("deleteBtn");
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", async () => {
+          if (!confirm("Delete this assignment?")) return;
+          await deleteAssignment(assignmentId);
+          window.location.href = backHref;
+        });
+      }
     }
 
     watchAssignment(assignmentId, (data) => {

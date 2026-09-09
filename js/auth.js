@@ -1,37 +1,80 @@
-import { getOrCreateTeacher, updateTeacherCredentials } from "./db.js";
+import { getOrCreateTeacher, updateTeacherCredentials, findStudentByCredentials } from "./db.js";
 
 const SESSION_KEY = "homework-manager-logged-in";
+const ROLE_KEY = "homework-manager-role";
 const USERNAME_KEY = "homework-manager-username";
+const STUDENT_ID_KEY = "homework-manager-student-id";
 
 export function isLoggedIn() {
   return localStorage.getItem(SESSION_KEY) === "true";
+}
+
+export function currentRole() {
+  return localStorage.getItem(ROLE_KEY) || "teacher";
 }
 
 export function currentUsername() {
   return localStorage.getItem(USERNAME_KEY) || "";
 }
 
-// Redirects to the login page if there's no active session. Call this at
-// the top of every protected page before rendering anything.
-export function requireAuth() {
+export function currentStudentId() {
+  return localStorage.getItem(STUDENT_ID_KEY) || "";
+}
+
+// Teacher-only pages (classes, assignments management, settings).
+export function requireTeacherAuth() {
+  if (!isLoggedIn()) {
+    window.location.href = "index.html";
+  } else if (currentRole() !== "teacher") {
+    window.location.href = "student.html";
+  }
+}
+
+// The student's own assignments page.
+export function requireStudentAuth() {
+  if (!isLoggedIn()) {
+    window.location.href = "index.html";
+  } else if (currentRole() !== "student") {
+    window.location.href = "classes.html";
+  }
+}
+
+// Pages either role can see (the assignment detail page).
+export function requireAnyAuth() {
   if (!isLoggedIn()) {
     window.location.href = "index.html";
   }
 }
 
+// Tries the teacher account first, then falls back to student credentials.
+// Returns { role: "teacher" } | { role: "student", studentId, name } | null.
 export async function login(username, password) {
-  const current = await getOrCreateTeacher();
-  if (username === current.username && password === current.password) {
+  const teacher = await getOrCreateTeacher();
+  if (username === teacher.username && password === teacher.password) {
     localStorage.setItem(SESSION_KEY, "true");
-    localStorage.setItem(USERNAME_KEY, current.username);
-    return true;
+    localStorage.setItem(ROLE_KEY, "teacher");
+    localStorage.setItem(USERNAME_KEY, teacher.username);
+    localStorage.removeItem(STUDENT_ID_KEY);
+    return { role: "teacher" };
   }
-  return false;
+
+  const student = await findStudentByCredentials(username, password);
+  if (student) {
+    localStorage.setItem(SESSION_KEY, "true");
+    localStorage.setItem(ROLE_KEY, "student");
+    localStorage.setItem(USERNAME_KEY, student.username);
+    localStorage.setItem(STUDENT_ID_KEY, student.id);
+    return { role: "student", studentId: student.id, name: student.name };
+  }
+
+  return null;
 }
 
 export function logout() {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(USERNAME_KEY);
+  localStorage.removeItem(STUDENT_ID_KEY);
   window.location.href = "index.html";
 }
 
