@@ -117,6 +117,14 @@ export async function removeStudentFromClass(studentId, classId) {
 }
 
 export async function deleteStudent(studentId) {
+  // Drop this student from any assignment that targets them individually,
+  // so it doesn't linger as a dangling entry in studentIds.
+  const targeted = await getDocs(
+    query(collection(db, "assignments"), where("studentIds", "array-contains", studentId))
+  );
+  await Promise.all(
+    targeted.docs.map((d) => updateDoc(d.ref, { studentIds: arrayRemove(studentId) }))
+  );
   await deleteDoc(doc(db, "students", studentId));
 }
 
