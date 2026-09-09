@@ -1,19 +1,80 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-    <title>Homework Manager</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <title>Homework Manager</title>
+</head>
+<body>
+  <div class="auth-screen">
+    <form class="auth-card" id="loginForm">
+      <div class="auth-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3 2 8l10 5 10-5-10-5z" />
+          <path d="M6 10.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-5.5" />
+          <path d="M22 8v6" />
+        </svg>
+      </div>
+      <h1>Homework Manager</h1>
+      <p class="auth-subtitle">Sign in to manage classes and assignments</p>
+
+      <label class="field">
+        <span>Username</span>
+        <input id="username" autocomplete="username" autofocus required />
+      </label>
+
+      <label class="field">
+        <span>Password</span>
+        <input id="password" type="password" autocomplete="current-password" required />
+      </label>
+
+      <div class="error-text" id="loginError" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9" /><line x1="12" y1="7.75" x2="12" y2="13" /><line x1="12" y1="16.25" x2="12" y2="16.35" />
+        </svg>
+        <span id="loginErrorText">Incorrect username or password.</span>
+      </div>
+
+      <button class="btn btn-primary btn-block" type="submit" id="loginBtn">Sign in</button>
+    </form>
+  </div>
+
+  <script type="module">
+    import { login, isLoggedIn } from "./js/auth.js";
+
+    if (isLoggedIn()) {
+      window.location.href = "classes.html";
+    }
+
+    const form = document.getElementById("loginForm");
+    const errorBox = document.getElementById("loginError");
+    const errorText = document.getElementById("loginErrorText");
+    const btn = document.getElementById("loginBtn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.hidden = true;
+      btn.disabled = true;
+      btn.textContent = "Signing in…";
+
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      const ok = await login(username, password);
+
+      if (ok) {
+        window.location.href = "classes.html";
+        return;
+      }
+
+      errorText.textContent = "Incorrect username or password.";
+      errorBox.hidden = false;
+      btn.disabled = false;
+      btn.textContent = "Sign in";
+    });
+  </script>
+</body>
 </html>
