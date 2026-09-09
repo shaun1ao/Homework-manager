@@ -53,8 +53,14 @@
 
   <script type="module">
     import { requireStudentAuth, initSidebar, currentStudentId } from "./js/auth.js";
-    import { watchAssignments, watchClasses, watchStudents } from "./js/db.js";
-    import { escapeHtml, isOverdue } from "./js/helpers.js";
+    import {
+      watchAssignments,
+      watchClasses,
+      watchStudents,
+      markAssignmentComplete,
+      markAssignmentIncomplete,
+    } from "./js/db.js";
+    import { escapeHtml, isOverdue, sortByDueDate } from "./js/helpers.js";
 
     requireStudentAuth();
     initSidebar();
@@ -85,11 +91,13 @@
       const container = document.getElementById("assignmentsContainer");
       const myClasses = myClassIds();
 
-      const mine = assignments.filter((a) => {
-        if (a.targetType === "class") return myClasses.includes(a.classId);
-        if (a.targetType === "students") return (a.studentIds || []).includes(myId);
-        return false;
-      });
+      const mine = sortByDueDate(
+        assignments.filter((a) => {
+          if (a.targetType === "class") return myClasses.includes(a.classId);
+          if (a.targetType === "students") return (a.studentIds || []).includes(myId);
+          return false;
+        })
+      );
 
       const me = students.find((s) => s.id === myId);
       document.getElementById("pageTitle").textContent = me ? `Hi, ${me.name}` : "My Assignments";
@@ -109,15 +117,19 @@
         ${mine
           .map((a) => {
             const overdue = isOverdue(a.dueDate);
+            const done = (a.completedBy || []).includes(myId);
             return `
-            <li>
+            <li class="${done ? "completed" : ""}">
+              <label class="assignment-checkbox" title="${done ? "Mark as not done" : "Mark as done"}">
+                <input type="checkbox" data-toggle-complete="${a.id}" ${done ? "checked" : ""} />
+              </label>
               <a href="assignment.html?id=${encodeURIComponent(a.id)}">
                 <div class="assignment-main">
                   <div class="assignment-row">
                     <span class="assignment-title">${escapeHtml(a.title)}</span>
-                    <span class="assignment-due${overdue ? " overdue" : ""}">
+                    <span class="assignment-due${done ? " done" : overdue ? " overdue" : ""}">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="8" y1="3" x2="8" y2="7" /><line x1="16" y1="3" x2="16" y2="7" /></svg>
-                      ${overdue ? "Overdue · " : "Due "}${escapeHtml(a.dueDate)}
+                      ${done ? "Done · " : overdue ? "Overdue · " : "Due "}${escapeHtml(a.dueDate)}
                     </span>
                   </div>
                   <div class="assignment-target">${targetBadge(a)}</div>
@@ -128,6 +140,19 @@
           })
           .join("")}
       </ul>`;
+
+      container.querySelectorAll("[data-toggle-complete]").forEach((cb) => {
+        cb.addEventListener("click", (e) => e.stopPropagation());
+        cb.addEventListener("change", async () => {
+          const id = cb.dataset.toggleComplete;
+          cb.disabled = true;
+          if (cb.checked) {
+            await markAssignmentComplete(id, myId);
+          } else {
+            await markAssignmentIncomplete(id, myId);
+          }
+        });
+      });
     }
 
     watchAssignments((data) => {

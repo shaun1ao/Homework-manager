@@ -40,14 +40,22 @@
   </div>
 
   <script type="module">
-    import { requireAnyAuth, initSidebar, currentRole } from "./js/auth.js";
-    import { watchAssignment, watchClasses, watchStudents, deleteAssignment } from "./js/db.js";
-    import { escapeHtml, getParam, isOverdue } from "./js/helpers.js";
+    import { requireAnyAuth, initSidebar, currentRole, currentStudentId } from "./js/auth.js";
+    import {
+      watchAssignment,
+      watchClasses,
+      watchStudents,
+      deleteAssignment,
+      markAssignmentComplete,
+      markAssignmentIncomplete,
+    } from "./js/db.js";
+    import { escapeHtml, getParam, isOverdue, initials } from "./js/helpers.js";
 
     requireAnyAuth();
     initSidebar();
 
     const role = currentRole();
+    const myId = currentStudentId();
     const backHref = role === "student" ? "student.html" : "assignments.html";
 
     document.getElementById("sidebarNav").innerHTML =
@@ -105,6 +113,13 @@
           ? (assignment.studentIds || []).map((id) => students.find((s) => s.id === id)).filter(Boolean)
           : [];
       const overdue = isOverdue(assignment.dueDate);
+      const completedBy = assignment.completedBy || [];
+      const iAmDone = role === "student" && completedBy.includes(myId);
+
+      const eligibleStudents =
+        assignment.targetType === "class"
+          ? students.filter((s) => (s.classIds || []).includes(assignment.classId))
+          : targetStudents;
 
       content.innerHTML = `
         <button class="back-link" id="backLink">
@@ -124,7 +139,10 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
                     Delete
                   </button>`
-                : ""
+                : `<button class="btn ${iAmDone ? "btn-secondary" : "btn-primary"}" id="completeBtn" type="button">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8 12.5l2.5 2.5L16 9" /></svg>
+                    ${iAmDone ? "Completed" : "Mark as done"}
+                  </button>`
             }
           </div>
 
@@ -165,6 +183,34 @@
           </div>
 
           ${
+            role === "teacher" && eligibleStudents.length > 0
+              ? `<div class="detail-row detail-row-block">
+                  <span class="detail-label">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8 12.5l2.5 2.5L16 9" /></svg>
+                    Completed (${completedBy.length}/${eligibleStudents.length})
+                  </span>
+                  <ul class="roster-list" style="width:100%">
+                    ${eligibleStudents
+                      .map((s) => {
+                        const done = completedBy.includes(s.id);
+                        return `
+                        <li>
+                          <span class="roster-person">
+                            <span class="avatar">${initials(s.name)}</span>
+                            ${escapeHtml(s.name)}
+                          </span>
+                          <span class="badge ${done ? "badge-success" : ""}">
+                            ${done ? "Done" : "Not yet"}
+                          </span>
+                        </li>`;
+                      })
+                      .join("")}
+                  </ul>
+                </div>`
+              : ""
+          }
+
+          ${
             assignment.description
               ? `<div class="detail-row detail-row-block">
                   <span class="detail-label">Extra info</span>
@@ -181,6 +227,17 @@
           if (!confirm("Delete this assignment?")) return;
           await deleteAssignment(assignmentId);
           window.location.href = backHref;
+        });
+      }
+      const completeBtn = document.getElementById("completeBtn");
+      if (completeBtn) {
+        completeBtn.addEventListener("click", async () => {
+          completeBtn.disabled = true;
+          if (iAmDone) {
+            await markAssignmentIncomplete(assignmentId, myId);
+          } else {
+            await markAssignmentComplete(assignmentId, myId);
+          }
         });
       }
     }

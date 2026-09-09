@@ -67,7 +67,7 @@
       removeStudentFromClass,
       ensureStudentCredentials,
     } from "./js/db.js";
-    import { escapeHtml, initials, getParam } from "./js/helpers.js";
+    import { escapeHtml, initials, getParam, sortByDueDate } from "./js/helpers.js";
 
     requireTeacherAuth();
     initSidebar();
@@ -96,7 +96,9 @@
 
       const roster = students.filter((s) => (s.classIds || []).includes(classId));
       const notInClass = students.filter((s) => !(s.classIds || []).includes(classId));
-      const classAssignments = assignments.filter((a) => a.targetType === "class" && a.classId === classId);
+      const classAssignments = sortByDueDate(
+        assignments.filter((a) => a.targetType === "class" && a.classId === classId)
+      );
 
       content.innerHTML = `
         <button class="back-link" id="backLink">

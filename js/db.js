@@ -117,13 +117,21 @@ export async function removeStudentFromClass(studentId, classId) {
 }
 
 export async function deleteStudent(studentId) {
-  // Drop this student from any assignment that targets them individually,
-  // so it doesn't linger as a dangling entry in studentIds.
+  // Drop this student from any assignment that targets them individually or
+  // that they'd marked complete, so nothing lingers as a dangling reference.
   const targeted = await getDocs(
     query(collection(db, "assignments"), where("studentIds", "array-contains", studentId))
   );
+  const completed = await getDocs(
+    query(collection(db, "assignments"), where("completedBy", "array-contains", studentId))
+  );
+  const touched = new Map();
+  targeted.docs.forEach((d) => touched.set(d.id, d.ref));
+  completed.docs.forEach((d) => touched.set(d.id, d.ref));
   await Promise.all(
-    targeted.docs.map((d) => updateDoc(d.ref, { studentIds: arrayRemove(studentId) }))
+    [...touched.values()].map((ref) =>
+      updateDoc(ref, { studentIds: arrayRemove(studentId), completedBy: arrayRemove(studentId) })
+    )
   );
   await deleteDoc(doc(db, "students", studentId));
 }
@@ -146,12 +154,25 @@ export function watchAssignment(assignmentId, callback) {
 export async function createAssignment(data) {
   return addDoc(collection(db, "assignments"), {
     ...data,
+    completedBy: [],
     createdAt: serverTimestamp(),
   });
 }
 
 export async function updateAssignment(assignmentId, updates) {
   await updateDoc(doc(db, "assignments", assignmentId), updates);
+}
+
+export async function markAssignmentComplete(assignmentId, studentId) {
+  await updateDoc(doc(db, "assignments", assignmentId), {
+    completedBy: arrayUnion(studentId),
+  });
+}
+
+export async function markAssignmentIncomplete(assignmentId, studentId) {
+  await updateDoc(doc(db, "assignments", assignmentId), {
+    completedBy: arrayRemove(studentId),
+  });
 }
 
 export async function deleteAssignment(assignmentId) {

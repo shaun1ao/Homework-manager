@@ -115,7 +115,7 @@
   <script type="module">
     import { requireTeacherAuth, initSidebar } from "./js/auth.js";
     import { watchAssignments, watchClasses, watchStudents, createAssignment } from "./js/db.js";
-    import { escapeHtml, isOverdue } from "./js/helpers.js";
+    import { escapeHtml, isOverdue, sortByDueDate } from "./js/helpers.js";
 
     requireTeacherAuth();
     initSidebar();
@@ -140,6 +140,24 @@
       </span>`;
     }
 
+    function eligibleCount(a) {
+      if (a.targetType === "class") {
+        return students.filter((s) => (s.classIds || []).includes(a.classId)).length;
+      }
+      return (a.studentIds || []).length;
+    }
+
+    function completionBadge(a) {
+      const total = eligibleCount(a);
+      const done = (a.completedBy || []).length;
+      if (total === 0) return "";
+      const allDone = done >= total;
+      return `<span class="badge ${allDone ? "badge-success" : ""}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8 12.5l2.5 2.5L16 9" /></svg>
+        ${done}/${total} done
+      </span>`;
+    }
+
     function renderAssignmentsList() {
       const container = document.getElementById("assignmentsContainer");
       if (assignments.length === 0) {
@@ -154,7 +172,7 @@
       }
 
       container.innerHTML = `<ul class="assignment-list">
-        ${assignments
+        ${sortByDueDate(assignments)
           .map((a) => {
             const overdue = isOverdue(a.dueDate);
             return `
@@ -168,7 +186,7 @@
                       ${overdue ? "Overdue · " : "Due "}${escapeHtml(a.dueDate)}
                     </span>
                   </div>
-                  <div class="assignment-target">${targetBadge(a)}</div>
+                  <div class="assignment-target">${targetBadge(a)} ${completionBadge(a)}</div>
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-faint)"><path d="M9 6l6 6-6 6" /></svg>
               </a>

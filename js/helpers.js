@@ -19,6 +19,10 @@ export function isOverdue(dueDate) {
   return dueDate < today;
 }
 
+export function sortByDueDate(assignments) {
+  return [...assignments].sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
+}
+
 const PASSWORD_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I/L — easy to read aloud
 
 export function generateUsername(name, existingUsernames = []) {
